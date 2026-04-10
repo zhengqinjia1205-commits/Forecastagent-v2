@@ -1,0 +1,24 @@
+# ForecastPro Dashboard 额外依赖
+
+# 核心依赖 (已包含在requirements.txt中)
+# pandas>=1.5.0
+# numpy>=1.23.0
+# scikit-learn>=1.2.0
+# scipy>=1.10.0
+# statsmodels>=0.13.0
+# xgboost>=1.7.0
+# matplotlib>=3.7.0
+# seaborn>=0.12.0
+
+# Web应用框架
+streamlit>=1.28.0
+
+# 交互式可视化
+plotly>=5.17.0
+
+# 可选: 增强数据上传处理
+openpyxl>=3.1.0  # 用于Excel文件支持
+
+# 开发工具
+jupyter>=1.0.0
+notebook>=6.5.0
