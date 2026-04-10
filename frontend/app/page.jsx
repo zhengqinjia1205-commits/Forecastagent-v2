@@ -10,7 +10,12 @@ function toNumber(value, fallback) {
 function normalizeBaseUrl(raw) {
   const s = String(raw || "").trim()
   if (!s) return ""
-  const withProto = s.startsWith("http://") || s.startsWith("https://") ? s : `http://${s}`
+  if (s.startsWith("http://") || s.startsWith("https://")) return s.replace(/\/+$/, "")
+  const host = s.replace(/^\/\//, "").split("/")[0] || ""
+  const isLocal =
+    host.startsWith("localhost") || host.startsWith("127.0.0.1") || host.startsWith("0.0.0.0") || host.endsWith(".local")
+  const proto = isLocal ? "http://" : "https://"
+  const withProto = `${proto}${s.replace(/^\/\//, "")}`
   return withProto.replace(/\/+$/, "")
 }
 
@@ -133,7 +138,7 @@ export default function Page() {
   const [testSize, setTestSize] = useState("0.2")
   const [randomSeed, setRandomSeed] = useState("42")
   const [periods, setPeriods] = useState("10")
-  const [apiBase, setApiBase] = useState(process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001")
+  const [apiBase, setApiBase] = useState(process.env.NEXT_PUBLIC_API_BASE_URL || "")
   const [timeCol, setTimeCol] = useState("")
   const [demandCol, setDemandCol] = useState("")
   const [methodAuto, setMethodAuto] = useState(true)
@@ -163,6 +168,8 @@ export default function Page() {
 
   useEffect(() => {
     let cancelled = false
+    const isLocalHost =
+      typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
 
     async function ping(base) {
       try {
@@ -181,7 +188,7 @@ export default function Page() {
       }
       if (normalized !== apiBase && !cancelled) setApiBase(normalized)
 
-      const candidates = [normalized, "http://localhost:8001", "http://localhost:8000"]
+      const candidates = [normalized].concat(isLocalHost ? ["http://localhost:8001", "http://localhost:8000"] : [])
       const seen = new Set()
       for (const c of candidates) {
         const key = normalizeBaseUrl(c)
@@ -528,7 +535,11 @@ export default function Page() {
                     </div>
                     <div className="field" style={{ minWidth: 260 }}>
                       <label>API 地址</label>
-                      <input value={apiBase} onChange={(e) => setApiBase(e.target.value)} placeholder="http://localhost:8000" />
+                      <input
+                        value={apiBase}
+                        onChange={(e) => setApiBase(e.target.value)}
+                        placeholder="https://<backend>.up.railway.app"
+                      />
                     </div>
                     <div className="field">
                       <label>频率</label>
