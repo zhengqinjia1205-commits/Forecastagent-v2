@@ -1389,7 +1389,7 @@ class ForecastProAgent:
         if method == "seasonal_ets":
             seasonal = True if seasonal is None else bool(seasonal)
         elif method == "ets":
-            seasonal = False if seasonal is None else bool(seasonal)
+            seasonal = seasonal if seasonal is None else bool(seasonal)
         else:
             seasonal = False
 
@@ -1571,6 +1571,16 @@ class ForecastProAgent:
             return self.forecast_results
 
         if method in {"ets", "seasonal_ets"}:
+            variant = None
+            try:
+                if self.evaluation_results is not None and len(self.evaluation_results) > 0 and "model" in self.evaluation_results.columns:
+                    candidates = ["ets_simple", "ets_holt", "ets_holt_winters", "seasonal_ets", "ets"]
+                    dfv = self.evaluation_results[self.evaluation_results["model"].isin(candidates)]
+                    if len(dfv) > 0 and "MAPE" in dfv.columns:
+                        variant = str(dfv.sort_values("MAPE").iloc[0]["model"])
+            except Exception:
+                variant = None
+
             if seasonal and (seasonal_periods is None or seasonal_periods < 2):
                 seasonal = False
                 seasonal_periods = None
@@ -1579,14 +1589,25 @@ class ForecastProAgent:
                 seasonal = False
                 seasonal_periods = None
 
+            if method == "seasonal_ets":
+                seasonal = True if seasonal is None else bool(seasonal)
+            elif seasonal is None:
+                seasonal = variant in {"ets_holt_winters", "seasonal_ets"}
+
+            if seasonal and (seasonal_periods is None or seasonal_periods < 2):
+                seasonal_periods = _default_seasonal_periods()
+
+            if seasonal and seasonal_periods is not None and len(y) < 2 * int(seasonal_periods):
+                seasonal = False
+                seasonal_periods = None
+
             if seasonal:
                 print(f"\n使用ETS(季节性)生成 {periods} 期预测，seasonal_periods={seasonal_periods}")
                 model = ExponentialSmoothing(y, trend="add", seasonal="add", seasonal_periods=seasonal_periods)
-                model_name = "seasonal_ets"
             else:
+                trend = "add" if variant in {"ets_holt"} else None
                 print(f"\n使用ETS(非季节性)生成 {periods} 期预测")
-                model = ExponentialSmoothing(y, trend="add", seasonal=None)
-                model_name = "ets"
+                model = ExponentialSmoothing(y, trend=trend, seasonal=None)
 
             fitted = model.fit()
             forecast = fitted.forecast(periods).astype(float)
@@ -1601,8 +1622,8 @@ class ForecastProAgent:
                 "forecast": forecast.tolist(),
                 "lower_bound": lower.tolist(),
                 "upper_bound": upper.tolist(),
-                "model": model_name,
-                "params": {"seasonal": seasonal, "seasonal_periods": seasonal_periods, "trend": "add"},
+                "model": "ets",
+                "params": {"variant": variant, "seasonal": seasonal, "seasonal_periods": seasonal_periods, "trend": "add" if seasonal or variant in {"ets_holt"} else None},
             }
             print(f"未来 {periods} 期预测生成完成")
             return self.forecast_results
@@ -1675,6 +1696,10 @@ class ForecastProAgent:
             'model_details': self.model_results if hasattr(self, 'model_results') else None,
             'forecast_summary': self.forecast_results if hasattr(self, 'forecast_results') else None,
             'ts_analysis': self.ts_analysis_results if hasattr(self, 'ts_analysis_results') else None,
+            'model_selection': {
+                'summary': self._generate_model_selection_summary(),
+                'risks': self._generate_risk_flags(),
+            },
             'insights': self._generate_insights(),
             'recommendations': self._generate_recommendations()
         }
@@ -1837,6 +1862,84 @@ class ForecastProAgent:
             )
 
         return recommendations[:2]  # 返回前2条最重要的建议
+
+    def _generate_model_selection_summary(self):
+        try:
+            if self.evaluation_results is None or len(self.evaluation_results) == 0:
+                return "尚未生成模型评估结果。"
+
+            best_row = self.evaluation_results.iloc[0].to_dict()
+            best_name = str(best_row.get("model", self.best_model or ""))
+            mape = best_row.get("MAPE")
+            in_mape = best_row.get("in_sample_MAPE")
+            gap = None
+            try:
+                if mape is not None and in_mape is not None:
+                    gap = float(mape) - float(in_mape)
+            except Exception:
+                gap = None
+
+            model_type = "高级模型" if (self.advanced_models or {}).get(best_name) is not None else "经典时序模型"
+            parts = [f"推荐模型：{best_name}（{model_type}）"]
+            if mape is not None:
+                try:
+                    parts.append(f"在测试集上误差最低（MAPE={float(mape):.2f}%）。")
+                except Exception:
+                    pass
+
+            if gap is not None:
+                if gap > 8:
+                    parts.append("训练集与测试集误差差距较大，可能存在一定过拟合风险。")
+                elif gap < -8:
+                    parts.append("训练集误差明显高于测试集，可能受数据分割/噪声影响；建议复核分割方式。")
+                else:
+                    parts.append("训练集与测试集误差差距适中，泛化表现较稳定。")
+
+            try:
+                if len(self.evaluation_results) > 1:
+                    second = self.evaluation_results.iloc[1].to_dict()
+                    m2 = second.get("MAPE")
+                    if mape is not None and m2 is not None:
+                        delta = float(m2) - float(mape)
+                        if delta >= 0.5:
+                            parts.append(f"相比第二名模型，MAPE 进一步降低约 {delta:.2f} 个百分点。")
+            except Exception:
+                pass
+
+            if "arima" in best_name.lower():
+                parts.append("该模型能更好刻画序列的自相关结构，适合存在惯性/周期波动的数据。")
+            elif "ets" in best_name.lower() or "exponential" in best_name.lower():
+                parts.append("该模型对趋势与（可能的）季节性有较好刻画，适合平滑且可解释的需求序列。")
+            elif "naive" in best_name.lower() or "moving_average" in best_name.lower():
+                parts.append("简单基线模型已足够，说明序列模式相对稳定、复杂模型收益有限。")
+            elif "random_forest" in best_name.lower() or "xgboost" in best_name.lower():
+                parts.append("该模型能捕捉非线性关系，但需重点关注过拟合与数据泄漏风险。")
+
+            return " ".join([p for p in parts if p])
+        except Exception:
+            return "模型选择解释生成失败。"
+
+    def _generate_risk_flags(self):
+        risks = []
+        try:
+            if self.evaluation_results is not None and len(self.evaluation_results) > 0:
+                high = self.evaluation_results[self.evaluation_results.get("overfitting_risk") == "高"] if "overfitting_risk" in self.evaluation_results.columns else None
+                if high is not None and len(high) > 0:
+                    names = [str(x) for x in high["model"].tolist()[:6]]
+                    risks.append("过拟合风险较高的模型：" + "、".join(names))
+        except Exception:
+            pass
+
+        try:
+            best_name = str(self.best_model or "")
+            if (self.advanced_models or {}).get(best_name) is not None:
+                risks.append("高级模型未来预测默认将外生特征取最后已知值并递推滞后项；若未来外生变量变化较大，预测可能偏离。")
+        except Exception:
+            pass
+
+        if not risks:
+            risks.append("未发现明显的过拟合/数据泄漏风险信号，但仍建议定期用新数据复核模型表现。")
+        return risks
 
     def _print_report(self, report):
         """打印报告到控制台"""
