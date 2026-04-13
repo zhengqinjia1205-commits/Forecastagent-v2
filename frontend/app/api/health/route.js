@@ -1,7 +1,12 @@
 function normalizeBaseUrl(raw) {
   const s = String(raw || "").trim()
   if (!s) return ""
-  const withProto = s.startsWith("http://") || s.startsWith("https://") ? s : `http://${s}`
+  if (s.startsWith("http://") || s.startsWith("https://")) return s.replace(/\/+$/, "")
+  const host = s.replace(/^\/\//, "").split("/")[0] || ""
+  const isLocal =
+    host.startsWith("localhost") || host.startsWith("127.0.0.1") || host.startsWith("0.0.0.0") || host.endsWith(".local")
+  const proto = isLocal ? "http://" : "https://"
+  const withProto = `${proto}${s.replace(/^\/\//, "")}`
   return withProto.replace(/\/+$/, "")
 }
 
@@ -21,6 +26,17 @@ export async function GET(request) {
     const res = await fetch(`${apiBase}/health`, { method: "GET" })
     return new Response(res.body, { status: res.status, headers: res.headers })
   } catch (e) {
-    return Response.json({ ok: false, error: "unreachable api_base", message: String(e?.message || e) }, { status: 502 })
+    const cause = e?.cause
+    return Response.json(
+      {
+        ok: false,
+        error: "unreachable api_base",
+        message: String(e?.message || e),
+        cause: cause ? String(cause?.message || cause) : undefined,
+        code: cause?.code,
+        api_base: apiBase,
+      },
+      { status: 502 }
+    )
   }
 }
