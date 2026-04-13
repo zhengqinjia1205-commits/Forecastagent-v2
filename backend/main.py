@@ -139,7 +139,7 @@ async def forecast(
     test_size: float = Form(0.2),
     random_seed: int = Form(42),
     periods: int = Form(10),
-    methods: Optional[str] = Form(None),  # 逗号分隔: auto,naive,seasonal_naive,moving_average,ets,seasonal_ets,arima,trend
+    methods: Optional[str] = Form(None),  # 逗号分隔: naive,seasonal_naive,moving_average,ets,arima,(advanced...)
     include_advanced: bool = Form(False),
     time_col: Optional[str] = Form(None),
     demand_col: Optional[str] = Form(None),
@@ -192,7 +192,7 @@ async def forecast(
             if methods:
                 method_list = [m.strip() for m in methods.split(",") if m.strip()]
             else:
-                method_list = ["auto", "naive", "seasonal_naive", "moving_average", "ets", "seasonal_ets", "arima", "trend"]
+                method_list = ["naive", "seasonal_naive", "moving_average", "ets", "arima"]
             for m in method_list:
                 try:
                     agent.generate_forecast(periods=int(periods), forecast_method=m)
@@ -214,11 +214,88 @@ async def forecast(
         if y is not None and len(y) > 0:
             tail_n = min(len(y), 120)
             y_tail = y.iloc[-tail_n:]
+            fitted_best_tail = None
+            fitted_by_method_tail = {}
+            method_to_model = {}
+            try:
+                best_name = getattr(agent, "best_model", None)
+                train_size = int(len(agent.train_data["y"])) if agent.train_data and "y" in agent.train_data else None
+                fitted = None
+                if best_name and isinstance(best_name, str):
+                    if (agent.baseline_models or {}).get(best_name) is not None:
+                        fitted = (agent.baseline_models or {}).get(best_name, {}).get("fitted")
+                    elif (agent.advanced_models or {}).get(best_name) is not None:
+                        fitted = (agent.advanced_models or {}).get(best_name, {}).get("fitted")
+                if fitted is not None and train_size:
+                    try:
+                        fitted_list = list(fitted)
+                    except Exception:
+                        fitted_list = []
+                    fitted_full = [None] * int(len(y))
+                    n = min(int(train_size), int(len(fitted_list)))
+                    for i in range(n):
+                        try:
+                            v = float(fitted_list[i])
+                            fitted_full[i] = v if pd.notna(v) and float("inf") != abs(v) else None
+                        except Exception:
+                            fitted_full[i] = None
+                    fitted_best_tail = fitted_full[-tail_n:]
+            except Exception:
+                fitted_best_tail = None
+
+            try:
+                eval_df = agent.evaluation_results
+                best_ets_variant = None
+                if eval_df is not None and len(eval_df) > 0 and "model" in eval_df.columns:
+                    ets_candidates = ["ets_simple", "ets_holt", "ets_holt_winters", "seasonal_ets", "ets"]
+                    dfv = eval_df[eval_df["model"].isin(ets_candidates)]
+                    if len(dfv) > 0 and "MAPE" in dfv.columns:
+                        best_ets_variant = str(dfv.sort_values("MAPE").iloc[0]["model"])
+
+                def _model_key_for_method(m: str) -> str:
+                    mm = str(m or "").strip().lower()
+                    if mm == "ets":
+                        return best_ets_variant or "ets"
+                    return mm
+
+                def _fitted_for_model(model_key: str):
+                    if not model_key:
+                        return None
+                    if (agent.baseline_models or {}).get(model_key) is not None:
+                        return (agent.baseline_models or {}).get(model_key, {}).get("fitted")
+                    if (agent.advanced_models or {}).get(model_key) is not None:
+                        return (agent.advanced_models or {}).get(model_key, {}).get("fitted")
+                    return None
+
+                for m in (method_list or []):
+                    mk = _model_key_for_method(m)
+                    method_to_model[str(m)] = mk
+                    fitted_m = _fitted_for_model(mk)
+                    if fitted_m is None or not train_size:
+                        continue
+                    try:
+                        fitted_list = list(fitted_m)
+                    except Exception:
+                        fitted_list = []
+                    fitted_full = [None] * int(len(y))
+                    n = min(int(train_size), int(len(fitted_list)))
+                    for i in range(n):
+                        try:
+                            v = float(fitted_list[i])
+                            fitted_full[i] = v if pd.notna(v) and float("inf") != abs(v) else None
+                        except Exception:
+                            fitted_full[i] = None
+                    fitted_by_method_tail[str(m)] = fitted_full[-tail_n:]
+            except Exception:
+                fitted_by_method_tail = {}
+                method_to_model = {}
             history = {
                 "dates": [d.to_pydatetime() for d in y_tail.index],
                 "actual": [float(v) for v in y_tail.values],
                 "train_size": int(len(agent.train_data["y"])) if agent.train_data and "y" in agent.train_data else None,
                 "total_size": int(len(y)),
+                "fitted_best": fitted_best_tail,
+                "fitted_by_method": fitted_by_method_tail,
             }
         else:
             history = None
@@ -232,9 +309,10 @@ async def forecast(
             "evaluation_results": evaluation_results,
             "forecast_results": forecast_results,
             "history": history,
+            "method_to_model": agent._clean_for_json(method_to_model) if "method_to_model" in locals() else None,
             "detected": {"time_col": agent.time_col, "demand_col": agent.demand_col},
             "available_methods": sorted(set(
-                ["auto", "naive", "seasonal_naive", "moving_average", "ets", "seasonal_ets", "arima", "trend"]
+                ["naive", "seasonal_naive", "moving_average", "ets", "arima"]
                 + list((agent.baseline_models or {}).keys())
                 + list((agent.advanced_models or {}).keys())
             )),
