@@ -49,12 +49,12 @@ export default function InsightsPage() {
       <BgCanvas />
       <div className="mask" />
       <div className="shell">
-        <AppShell active="insights" title="Insights" subtitle="管理報告：洞察、建議、模型比較與風險提示。">
+        <AppShell active="insights" title="Insights" subtitle="Management Report：Insights、Suggestions、Model Comparison與Risk Warnings。">
           <div className="panel">
               {!data ? (
                 <div className="card">
-                  <h2>尚未產生報告</h2>
-                  <div className="muted">請先到 Upload 頁面上傳資料並生成一次預測，這裡會自動顯示洞察與建議。</div>
+                  <h2>Report not generated yet</h2>
+                  <div className="muted">請先到 Upload 頁面上傳資料並生成一次預測，這裡會自動顯示Insights與Suggestions。</div>
                 </div>
               ) : (
                 <>
@@ -63,7 +63,7 @@ export default function InsightsPage() {
                       <h2>摘要</h2>
                       <div className="kpi">
                         <div>
-                          <div className="muted">最佳模型</div>
+                          <div className="muted">Best Model</div>
                           <strong>{summary?.name || "—"}</strong>
                         </div>
                         <div style={{ textAlign: "right" }}>
@@ -87,9 +87,9 @@ export default function InsightsPage() {
                     <div className="card">
                       <h2>如何使用</h2>
                       <ul className="list">
-                        <li>先確認洞察是否符合你對資料的認知（趨勢、季節性、波動）。</li>
-                        <li>再看建議：是否要調整補貨/人力/產能或促銷節奏。</li>
-                          <li>需要重新跑模型時，回到 Upload 頁面再生成一次即可。</li>
+                        <li>先確認Insights是否符合你對資料的認知（趨勢、Quarterly (Q)節性、波動）。</li>
+                        <li>再看Suggestions：是否要調整補貨/人力/產能或促銷節奏。</li>
+                          <li>If you need to rerun the model, just go back to the Upload page and generate again.</li>
                       </ul>
                     </div>
                   </div>
@@ -98,7 +98,7 @@ export default function InsightsPage() {
 
                   <div className="grid">
                     <div className="card">
-                      <h2>洞察</h2>
+                      <h2>Insights</h2>
                       <ul className="list">
                         {(insights.length ? insights : ["—"]).slice(0, 12).map((t, i) => (
                           <li key={`ins_${i}`}>{t}</li>
@@ -107,7 +107,7 @@ export default function InsightsPage() {
                     </div>
 
                     <div className="card">
-                      <h2>建議</h2>
+                      <h2>Suggestions</h2>
                       <ul className="list">
                         {(recommendations.length ? recommendations : ["—"]).slice(0, 12).map((t, i) => (
                           <li key={`rec_${i}`}>{t}</li>
@@ -120,12 +120,12 @@ export default function InsightsPage() {
                     <>
                       <div className="sectionSpacer" />
                       <div className="card">
-                        <h2>為什麼選這個模型</h2>
+                        <h2>Why choose this model</h2>
                         <div className="muted">{String(modelSelection.summary)}</div>
                         {Array.isArray(modelSelection?.risks) && modelSelection.risks.length ? (
                           <>
                             <div style={{ height: 10 }} />
-                            <div className="muted">風險提示</div>
+                            <div className="muted">Risk Warnings</div>
                             <ul className="list">
                               {modelSelection.risks.slice(0, 6).map((t, i) => (
                                 <li key={`risk_${i}`}>{String(t)}</li>
@@ -140,7 +140,7 @@ export default function InsightsPage() {
                   <div className="sectionSpacer" />
 
                   <div className="card">
-                    <h2>模型比較（按測試集 MAPE）</h2>
+                    <h2>Model Comparison（按測試集 MAPE）</h2>
                     <div style={{ overflowX: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
@@ -192,9 +192,9 @@ export default function InsightsPage() {
                     <div style={{ height: 14 }} />
                     <div className="row" style={{ alignItems: "flex-end" }}>
                       <div className="field" style={{ minWidth: 280 }}>
-                        <label>查看模型參數與指標</label>
+                        <label>View Model Parameters and Metrics</label>
                         <select value={modelDetailName || ""} onChange={(e) => setModelDetailName(e.target.value)}>
-                          <option value="">（預設：最佳模型）</option>
+                          <option value="">(Default: Best Model)</option>
                           {modelDetailKeys.map((k) => (
                             <option key={k} value={k}>
                               {k}
@@ -202,7 +202,7 @@ export default function InsightsPage() {
                           ))}
                         </select>
                       </div>
-                      <div className="muted">包含 fitted parameters、in-sample 與 hold-out 指標</div>
+                      <div className="muted">Includes fitted parameters, in-sample and hold-out metrics</div>
                     </div>
 
                     <div style={{ height: 10 }} />

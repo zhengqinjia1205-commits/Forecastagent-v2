@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:clean": "rm -rf .next && next dev",
+    "dev:stable": "node scripts/dev-stable.mjs",
     "build": "next build",
     "start": "next start"
   },

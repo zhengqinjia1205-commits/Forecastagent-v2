@@ -5,7 +5,7 @@ import AppShell from "../components/AppShell"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-export default function UploadPage() {
+export default function PreviewPage() {
   const router = useRouter()
   useEffect(() => {
     router.replace("/agent")

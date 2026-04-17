@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation"
 export default function Page() {
   const router = useRouter()
   useEffect(() => {
-    router.replace("/upload")
+    router.replace("/agent")
   }, [router])
   return null
 }
-

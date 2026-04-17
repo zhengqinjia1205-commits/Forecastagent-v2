@@ -45,16 +45,15 @@ export default function AppShell({ active, title, subtitle, headerRight, childre
         </div>
 
         <nav className="nav">
-          <Link href="/upload" className={`navItem ${active === "upload" ? "navItemActive" : ""}`}>
+          <Link href="/agent" className={`navItem ${active === "agent" ? "navItemActive" : ""}`}>
             <span className="navIcon" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M4 4h7v7H4V4Z" stroke="currentColor" strokeWidth="1.6" />
-                <path d="M13 4h7v4h-7V4Z" stroke="currentColor" strokeWidth="1.6" />
-                <path d="M13 10h7v10h-7V10Z" stroke="currentColor" strokeWidth="1.6" />
-                <path d="M4 13h7v7H4v-7Z" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M12 3a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v5a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-5a3 3 0 0 1 3-3h1V8a5 5 0 0 1 5-5Z" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M9 14h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M12 11v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             </span>
-            <span className="navLabel">Upload</span>
+            <span className="navLabel">Agent</span>
           </Link>
 
           <Link href="/forecast" className={`navItem ${active === "forecast" ? "navItemActive" : ""}`}>
@@ -72,6 +71,18 @@ export default function AppShell({ active, title, subtitle, headerRight, childre
               </svg>
             </span>
             <span className="navLabel">Forecast</span>
+          </Link>
+
+          <Link href="/report" className={`navItem ${active === "report" ? "navItemActive" : ""}`}>
+            <span className="navIcon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M7 3h8l4 4v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M15 3v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                <path d="M8 13h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M8 17h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="navLabel">Report</span>
           </Link>
 
           <Link href="/insights" className={`navItem ${active === "insights" ? "navItemActive" : ""}`}>
@@ -94,7 +105,15 @@ export default function AppShell({ active, title, subtitle, headerRight, childre
         <div className="sidebarFooter">
           <div className="sidebarFooterRow">
             <div className="pill">
-              <span className="pillText">{active === "upload" ? "Upload" : active === "forecast" ? "Forecast" : "Insights"}</span>
+              <span className="pillText">
+                {active === "agent"
+                  ? "Agent"
+                  : active === "forecast"
+                    ? "Forecast"
+                    : active === "report"
+                      ? "Report"
+                      : "Insights"}
+              </span>
             </div>
             <button type="button" className="collapseBtn" onClick={() => setSidebarCollapsed((v) => !v)} aria-label="Toggle sidebar">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -120,4 +139,3 @@ export default function AppShell({ active, title, subtitle, headerRight, childre
     </div>
   )
 }
-

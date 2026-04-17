@@ -16,7 +16,7 @@ export async function POST(request) {
   form.delete("api_base")
 
   const envBase = normalizeBaseUrl(process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL)
-  const apiBase = apiBaseFromForm || envBase || "http://localhost:8001"
+  const apiBase = apiBaseFromForm || envBase || "http://localhost:8011"
 
   try {
     new URL(apiBase)
